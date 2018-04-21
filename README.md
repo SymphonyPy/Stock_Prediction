@@ -8,7 +8,7 @@ Just run train.py with`python train.py`
 And then use `tensorboard --logdir=(tensorboard data file)` 
 like `tensorboard --logdir=2018-04-21` to launch TensorBoard in your browser.
 
-Also, you can use automatically saved model to run a demonstration of prediction. Comment out (I googled this word) the training cod in `if __name__ == "__main__":`, with only `demonstrate()` left. It is surprising that the result seems good.
+Also, you can use automatically saved model to run a demonstration of prediction. Comment out (I googled this word) the training code in `if __name__ == "__main__":`, with only `demonstrate()` left. It is surprising that the result seems good.
 
 ------------
 
