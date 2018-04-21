@@ -304,6 +304,7 @@ re2 = tf.matmul(a_re_, W2) + b2
 output = tf.nn.softmax(re2)
 
 loss = tf.reduce_mean(tf.square((output - labels)))
+tf.summary.scalar('loss', loss)
 
 L2_total = tf.nn.l2_loss(W2)
 train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss + L2_penalty * L2_total)
@@ -311,8 +312,13 @@ train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss + L2_penalty * 
 y_pred = tf.argmax(output, 1)
 correct_prediction = tf.equal(tf.argmax(output, 1), tf.argmax(labels, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+tf.summary.scalar('accuracy', accuracy)
 
 sess = tf.InteractiveSession(config=tf.ConfigProto(log_device_placement=False))
+
+merged = tf.summary.merge_all()
+test_writer = tf.summary.FileWriter(str(time.strftime("%Y-%m-%d")) + "/test")
+train_writer = tf.summary.FileWriter(str(time.strftime("%Y-%m-%d")) + "/train")
 
 tf.global_variables_initializer().run()
 
@@ -322,13 +328,30 @@ def train_epoch(EPOCH):
         x, y = train.next_batch(100)
         sess.run(train_step, feed_dict={inputs: x, labels: y, keep_prob: 0.3})
         if k % 10 == 0:
-            x, y = test.next_batch(500)
-            print("EPOCH:" + str(k), sess.run(accuracy, feed_dict={inputs: x, labels: y, keep_prob: 1}))
+            def cal_acc_f1(x, y):
+                acc = sess.run(accuracy, feed_dict={inputs: x, labels: y, keep_prob: 1})
+                y_t = [list(i).index(1) for i in y]
+                y_p = list(sess.run(y_pred, feed_dict={inputs: x, labels: y, keep_prob: 1}))
+                f1 = f1_score(y_true=y_t, y_pred=y_p, average='macro')
+                return round(acc, 3), round(f1, 3)
+
+            train_batch = train.next_batch(500)
+            test_batch = test.next_batch(500)
+            train_acc, train_f1 = cal_acc_f1(train_batch[0], train_batch[1])
+            test_acc, test_f1 = cal_acc_f1(test_batch[0], test_batch[1])
+            print("EPOCH:{}\ttrain accuracy:{}\ttrain macro-F1:{}".format(k, train_acc, train_f1, 3))
+            print("\t\ttest accuracy:{}\ttest macro-F1:{}".format(test_acc, test_f1))
+            print()
+            train_result = sess.run(merged, feed_dict={inputs: train_batch[0], labels: train_batch[1], keep_prob: 1})
+            train_writer.add_summary(train_result, k)
+            test_result = sess.run(merged, feed_dict={inputs: test_batch[0], labels: test_batch[1], keep_prob: 1})
+            test_writer.add_summary(test_result, k)
         if k % 100 == 0:
             saver = tf.train.Saver()
             model_path = "E:\Code\Python\DataMining\model\model.ckpt"
             save_path = saver.save(sess, model_path)
-            print("Modele saved. {}".format(save_path))
+            print("Model saved. {}".format(save_path))
+            print()
 
 
 def predict(data):
@@ -357,6 +380,7 @@ def demonstrate():
         price = [i for i in x]
         pred_low = [None for i in range(1680)] + [distribution[0]] * 240
         pred_high = [None for i in range(1680)] + [distribution[1]] * 240
+        print(price[1680], pred_high[-1], pred_low[-1])
         plt.cla()
         # print(price[(day + 7) * 240])
         plt.plot(days, price)
